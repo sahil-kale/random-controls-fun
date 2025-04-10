@@ -2,59 +2,81 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
+from collections import deque
 
 C_TO_KELVIN_OFFSET = 273.15
 
 class ThermalModel:
-    def __init__(self, h1, h2, h3, Tf):
+    def __init__(self, h1, h2, h3, Tf, dead_time=35):
         self.h1 = h1
         self.h2 = h2
         self.h3 = h3
         self.Tf = Tf
+        self.dead_time = dead_time
 
         self.construct_system_dynamics()
         self.X = np.ones((2, 1)) * Tf
 
-    def construct_system_dynamics(self):
-        surface_area = 1*10**-3 # m^2
-        surface_area_between_heaters = 2*10**-4
-        mass = 0.004 # kg
-        heat_capacity = 500 # J/(kgK)
+        self.input_history = deque()  # stores tuples of (timestamp, U)
+        # add in the initial input
+        self.input_history.append((0, np.array([0, 0, Tf]).reshape(3, 1)))
 
-        r1 = 1/(self.h1*surface_area)
-        r2 = 1/(self.h2*surface_area)
-        r3 = 1/(self.h3*surface_area_between_heaters)
+    def construct_system_dynamics(self):
+        surface_area = 1e-3  # m^2
+        surface_area_between_heaters = 2e-4
+        mass = 0.004  # kg
+        heat_capacity = 500  # J/(kgK)
+
+        r1 = 1 / (self.h1 * surface_area)
+        r2 = 1 / (self.h2 * surface_area)
+        r3 = 1 / (self.h3 * surface_area_between_heaters)
 
         A = np.array([
-            [(-1/r1 - 1/r3), (1/r3)],
-            [(1/r3), (-1/r2 - 1/r3)]
+            [(-1/r1 - 1/r3),   (1/r3)],
+            [(1/r3),           (-1/r2 - 1/r3)]
         ])
-        self.A = A/(heat_capacity*mass)
+        self.A = A / (heat_capacity * mass)
+
         B = np.array([
             [1/100, 0, 1/(r1)],
             [0, 1/100, 1/(r2)]
         ])
-        self.B = B/(heat_capacity*mass)
+        self.B = B / (heat_capacity * mass)
 
-    def calculate_xdot(self, X, U): 
-        x_dot = self.A @ X + self.B @ U
-        return x_dot
+    def calculate_xdot(self, X, U):
+        return self.A @ X + self.B @ U
 
-    def propogate_dynamics(self, Q1_pct, Q2_pct, dt):
-        U = np.array([Q1_pct, Q2_pct, self.Tf]).reshape(3, 1)
+    def propagate_dynamics(self, Q1_pct, Q2_pct, current_time, dt):
+        # Buffer the current input
+        U_current = np.array([Q1_pct, Q2_pct, self.Tf]).reshape(3, 1)
+        self.input_history.append((current_time, U_current))
 
-        # Runge-Kutta 4th order method for integration (https://lpsa.swarthmore.edu/NumInt/NumIntFourth.html)
-        k1 = self.calculate_xdot(self.X, U)
-        k2 = self.calculate_xdot(self.X + dt/2*k1, U)
-        k3 = self.calculate_xdot(self.X + dt/2*k2, U)
-        k4 = self.calculate_xdot(self.X + dt*k3, U)
-        self.X = self.X + (dt/6)*(k1 + 2*k2 + 2*k3 + k4)
-    
+        # Find delayed input
+        delayed_input = self.input_history[0][1]  # Default to oldest
+        for t, u in reversed(self.input_history):
+            if current_time - t >= self.dead_time:
+                delayed_input = u
+                break
+
+        # Prune history (keep only relevant recent entries)
+        while len(self.input_history) > 2 and current_time - self.input_history[1][0] >= self.dead_time:
+            self.input_history.popleft()
+
+        # RK4 integration
+        NUM_RK_ITERATIONS = 2
+        dt_step = dt / NUM_RK_ITERATIONS
+        for _ in range(NUM_RK_ITERATIONS):
+            k1 = self.calculate_xdot(self.X, delayed_input)
+            k2 = self.calculate_xdot(self.X + dt_step/2 * k1, delayed_input)
+            k3 = self.calculate_xdot(self.X + dt_step/2 * k2, delayed_input)
+            k4 = self.calculate_xdot(self.X + dt_step * k3, delayed_input)
+            self.X = self.X + (dt_step / 6) * (k1 + 2*k2 + 2*k3 + k4)
+
         return self.X
-    
+
     def get_temperature(self):
         return self.X.reshape(-1)
-    
+
 def main():
     df = pd.read_csv('system_id/data/system_id_data.csv')
     df.columns = df.columns.str.strip()
@@ -62,50 +84,38 @@ def main():
     timestamps = df['Elapsed Time'].values
     heater_1 = df['Heater 1'].values
     heater_2 = df['Heater 2'].values
-    temp_1 = df['Temp 1 (degC)'].values
-    temp_2 = df['Temp 2 (degC)'].values
-
-    # add C_TO_KELVIN_OFFSET to the temperatures
-    temp_1 += C_TO_KELVIN_OFFSET
-    temp_2 += C_TO_KELVIN_OFFSET
+    temp_1 = df['Temp 1 (degC)'].values + C_TO_KELVIN_OFFSET
+    temp_2 = df['Temp 2 (degC)'].values + C_TO_KELVIN_OFFSET
     Tf = 29 + C_TO_KELVIN_OFFSET
 
     def objective(x):
         h1, h2, h3 = x
-        model = ThermalModel(h1, h2, h3, Tf)
-        simulated_temperatures = []
-        num_samples = len(timestamps) - 1
+        model = ThermalModel(h1, h2, h3, Tf, dead_time=35)
         error_sum = 0
-
-        for i in range(num_samples):
+        for i in range(len(timestamps) - 1):
             dt = timestamps[i+1] - timestamps[i]
-            q1 = heater_1[i+1]
-            q2 = heater_2[i+1]
-            model.propogate_dynamics(q1, q2, dt)
-            simulated_temperatures.append((model.X[0], model.X[1]))
+            model.propagate_dynamics(heater_1[i+1], heater_2[i+1], timestamps[i+1], dt)
             error_sum += (temp_1[i+1] - model.X[0])**2 + (temp_2[i+1] - model.X[1])**2
-        
-        return error_sum # no need to divide by num_samples, as the optimizer will find the minimum anyway
-    
-    # Initial guess for h1, h2, h3
-    initial_guess = [10, 10, 10]
-    bounds = [(0.1, None), (0.1, None), (0.1, None)]
-    result = minimize(objective, initial_guess, bounds=bounds)
+        return error_sum
+
+    # Initial guess and bounds
+    initial_guess = [1000, 1000, 1000]
+    bounds = [(None, None), (0.1, None), (0.1, None)]
+    result = minimize(objective, initial_guess, bounds=bounds, method='Nelder-Mead')
     h1, h2, h3 = result.x
-    print(f"Optimized parameters: h1={h1}, h2={h2}, h3={h3}")
+    print(f"Optimized parameters: h1={h1:.3f}, h2={h2:.3f}, h3={h3:.6f}")
     print(result)
 
-    # Plot the results
-    model = ThermalModel(h1, h2, h3, Tf)
+    # Plotting
+    model = ThermalModel(h1, h2, h3, Tf, dead_time=35)
     simulated_temperatures = []
-    num_samples = len(timestamps) - 1
-    for i in range(num_samples):
+    for i in range(len(timestamps) - 1):
         dt = timestamps[i+1] - timestamps[i]
-        q1 = heater_1[i+1]
-        q2 = heater_2[i+1]
-        model.propogate_dynamics(q1, q2, dt)
+        model.propagate_dynamics(heater_1[i+1], heater_2[i+1], timestamps[i+1], dt)
         simulated_temperatures.append((model.X[0], model.X[1]))
+
     simulated_temperatures = np.array(simulated_temperatures)
+
     plt.figure(figsize=(10, 5))
     plt.plot(timestamps[1:], temp_1[1:], label='Measured Temp 1', color='red')
     plt.plot(timestamps[1:], temp_2[1:], label='Measured Temp 2', color='blue')
@@ -113,13 +123,11 @@ def main():
     plt.plot(timestamps[1:], simulated_temperatures[:, 1], label='Simulated Temp 2', linestyle='--', color='green')
     plt.xlabel('Elapsed Time (s)')
     plt.ylabel('Temperature (K)')
-    plt.title('Measured vs Simulated Temperatures')
+    plt.title('Measured vs Simulated Temperatures (with Dead-Time)')
     plt.legend()
-    plt.grid()
+    plt.grid(True)
     plt.tight_layout()
     plt.show()
-
-
 
 if __name__ == "__main__":
     main()
