@@ -2,3 +2,4 @@ tclab
 numpy
 matplotlib
 scipy
+pandas

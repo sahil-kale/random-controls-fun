@@ -4,7 +4,7 @@ import time
 import argparse
 import os
 
-RANDOM_TEMP_CONTROL_DT_S = 15
+RANDOM_TEMP_CONTROL_DT_S = 30
 SAVE_DIR = "system_id/data"
 
 def main(args):
