@@ -135,6 +135,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+tclab-fun-venv/
 
 # Spyder project settings
 .spyderproject

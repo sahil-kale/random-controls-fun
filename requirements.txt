@@ -1,0 +1,4 @@
+tclab
+numpy
+matplotlib
+scipy
