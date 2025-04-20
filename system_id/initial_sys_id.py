@@ -58,8 +58,11 @@ def main(args):
     # make a new directory if it doesn't exist
     if not os.path.exists(SAVE_DIR):
         os.makedirs(SAVE_DIR)
+
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    csv_filename = f"{SAVE_DIR}/system_id_data_{timestamp}.csv"
     
-    np.savetxt(f"{SAVE_DIR}/system_id_data.csv", data, delimiter=",", header="Elapsed Time, Heater 1, Heater 2, Temp 1 (degC), Temp 2 (degC)", comments='')
+    np.savetxt(csv_filename, data, delimiter=",", header="Elapsed Time, Heater 1, Heater 2, Temp 1 (degC), Temp 2 (degC)", comments='')
     print(f"Data saved to {SAVE_DIR}/system_id_data.csv")
     print("Experiment completed.")
 

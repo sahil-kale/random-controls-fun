@@ -116,18 +116,30 @@ def main():
 
     simulated_temperatures = np.array(simulated_temperatures)
 
-    plt.figure(figsize=(10, 5))
-    plt.plot(timestamps[1:], temp_1[1:], label='Measured Temp 1', color='red')
-    plt.plot(timestamps[1:], temp_2[1:], label='Measured Temp 2', color='blue')
-    plt.plot(timestamps[1:], simulated_temperatures[:, 0], label='Simulated Temp 1', linestyle='--', color='orange')
-    plt.plot(timestamps[1:], simulated_temperatures[:, 1], label='Simulated Temp 2', linestyle='--', color='green')
-    plt.xlabel('Elapsed Time (s)')
-    plt.ylabel('Temperature (K)')
-    plt.title('Measured vs Simulated Temperatures (with Dead-Time)')
-    plt.legend()
-    plt.grid(True)
+    fig, axs = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+
+    # --- Temperature subplot ---
+    axs[0].plot(timestamps[1:], temp_1[1:], label='Measured Temp 1', color='red')
+    axs[0].plot(timestamps[1:], temp_2[1:], label='Measured Temp 2', color='blue')
+    axs[0].plot(timestamps[1:], simulated_temperatures[:, 0], label='Simulated Temp 1', linestyle='--', color='orange')
+    axs[0].plot(timestamps[1:], simulated_temperatures[:, 1], label='Simulated Temp 2', linestyle='--', color='green')
+    axs[0].set_ylabel('Temperature (K)')
+    axs[0].set_title('Measured vs Simulated Temperatures (with Dead-Time)')
+    axs[0].legend()
+    axs[0].grid(True)
+
+    # --- Control signal subplot ---
+    axs[1].plot(timestamps, heater_1, label='Heater 1 %', color='purple')
+    axs[1].plot(timestamps, heater_2, label='Heater 2 %', color='teal')
+    axs[1].set_xlabel('Elapsed Time (s)')
+    axs[1].set_ylabel('Heater Output (%)')
+    axs[1].set_title('Heater Control Actions')
+    axs[1].legend()
+    axs[1].grid(True)
+
     plt.tight_layout()
     plt.show()
+
 
 if __name__ == "__main__":
     main()
