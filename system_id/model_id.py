@@ -100,8 +100,8 @@ def main():
         return error_sum
 
     # Initial guess and bounds
-    initial_guess = [10, 10, 10, 1/100, 0.75/100, 100]
-    bounds = [(1, 100), (1, 100), (1, 1000), (0.001, 0.015), (0.001, 0.015), (0.001, None)]
+    initial_guess = [10, 10, 10, 1/100, 0.75/100, 0.16]
+    bounds = [(1, 100), (1, 100), (1, 1000), (0.001, 0.015), (0.001, 0.015), (0.015, None)]
     result = minimize(objective, initial_guess, bounds=bounds, method='Nelder-Mead')
     h1, h2, h3, alpha_1, alpha_2, tau = result.x
     print(f"Optimized Parameters: h1={h1}, h2={h2}, h3={h3}, alpha_1={alpha_1}, alpha_2={alpha_2}, tau={tau}")
