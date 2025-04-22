@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from collections import deque
+import argparse
 
 C_TO_KELVIN_OFFSET = 273.15
 
@@ -63,7 +64,13 @@ class ThermalModel:
         return self.X.reshape(-1)
 
 def main():
-    df = pd.read_csv('system_id/data/system_id_data.csv')
+    parser = argparse.ArgumentParser(description="System Identification for Thermal Model")
+    parser.add_argument('data_file', type=str, help='Path to the data file')
+
+    args = parser.parse_args()
+
+
+    df = pd.read_csv(f'{args.data_file}')
     df.columns = df.columns.str.strip()
 
     timestamps = df['Elapsed Time'].values
