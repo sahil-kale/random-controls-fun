@@ -104,9 +104,9 @@ def main():
     initial_guess = [10, 10, 10, 1/100, 0.75/100, 20]
     bounds = [(1, 100), (1, 100), (1, 1000), (0.001, 0.015), (0.001, 0.015), (1, None)]
     result = minimize(objective, initial_guess, bounds=bounds, method='Nelder-Mead')
+    print(result)
     h1, h2, h3, alpha_1, alpha_2, tau = result.x
     print(f"Optimized Parameters: h1={h1}, h2={h2}, h3={h3}, alpha_1={alpha_1}, alpha_2={alpha_2}, tau={tau}")
-    print(result)
 
     # Plotting
     model = ThermalModel(h1, h2, h3, Tf, alpha_1, alpha_2, tau)
@@ -114,7 +114,8 @@ def main():
     for i in range(len(timestamps) - 1):
         dt = timestamps[i+1] - timestamps[i]
         model.propagate_dynamics(heater_1[i+1], heater_2[i+1], timestamps[i+1], dt)
-        simulated_temperatures.append((model.X[0], model.X[1]))
+        states = model.get_temperature()
+        simulated_temperatures.append((states[0], states[1]))
 
     simulated_temperatures = np.array(simulated_temperatures)
 
