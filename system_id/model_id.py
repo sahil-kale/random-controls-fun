@@ -8,16 +8,17 @@ import argparse
 C_TO_KELVIN_OFFSET = 273.15
 
 class ThermalModel:
-    def __init__(self, h1, h2, h3, Tf, alpha_1, alpha_2):
+    def __init__(self, h1, h2, h3, Tf, alpha_1, alpha_2, tau):
         self.h1 = h1
         self.h2 = h2
         self.h3 = h3
         self.Tf = Tf
+        self.tau = tau
         self.alpha_1 = alpha_1
         self.alpha_2 = alpha_2
 
         self.construct_system_dynamics()
-        self.X = np.ones((2, 1)) * Tf
+        self.X = np.ones((4, 1)) * Tf  # State vector: [T1, T2, T1_C, T2_C]
 
     def construct_system_dynamics(self):
         surface_area = 1e-3  # m^2
@@ -30,16 +31,24 @@ class ThermalModel:
         r3 = 1 / (self.h3 * surface_area_between_heaters)
 
         A = np.array([
-            [(-1/r1 - 1/r3),   (1/r3)],
-            [(1/r3),           (-1/r2 - 1/r3)]
+            [(-1/r1 - 1/r3) / (heat_capacity * mass),   (1/r3) / (heat_capacity * mass),         0, 0],
+            [(1/r3) / (heat_capacity * mass),           (-1/r2 - 1/r3) / (heat_capacity * mass), 0, 0],
+            [1/self.tau, 0, -1/self.tau, 0],
+            [0, 1/self.tau, 0, -1/self.tau]
         ])
-        self.A = A / (heat_capacity * mass)
+        self.A = A
 
         B = np.array([
             [self.alpha_1, 0, 1/(r1)],
-            [0, self.alpha_2, 1/(r2)]
+            [0, self.alpha_2, 1/(r2)],
+            [0, 0, 0],
+            [0, 0, 0]
         ])
         self.B = B / (heat_capacity * mass)
+        self.C = np.array([
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
 
     def calculate_xdot(self, X, U):
         return self.A @ X + self.B @ U
@@ -61,7 +70,7 @@ class ThermalModel:
         return self.X
 
     def get_temperature(self):
-        return self.X.reshape(-1)
+        return self.C @ self.X
 
 def main():
     parser = argparse.ArgumentParser(description="System Identification for Thermal Model")
@@ -81,8 +90,8 @@ def main():
     Tf = temp_1[0]
 
     def objective(x):
-        h1, h2, h3, alpha_1, alpha_2 = x
-        model = ThermalModel(h1, h2, h3, Tf, alpha_1, alpha_2)
+        h1, h2, h3, alpha_1, alpha_2, tau = x
+        model = ThermalModel(h1, h2, h3, Tf, alpha_1, alpha_2, tau)
         error_sum = 0
         for i in range(len(timestamps) - 1):
             dt = timestamps[i+1] - timestamps[i]
@@ -91,15 +100,15 @@ def main():
         return error_sum
 
     # Initial guess and bounds
-    initial_guess = [10, 10, 100, 1/100, 0.75/100]
-    bounds = [(1, 100), (1, 100), (1, 1000), (0.001, 0.015), (0.001, 0.015)]
+    initial_guess = [10, 10, 10, 1/100, 0.75/100, 100]
+    bounds = [(1, 100), (1, 100), (1, 1000), (0.001, 0.015), (0.001, 0.015), (0.001, None)]
     result = minimize(objective, initial_guess, bounds=bounds, method='Nelder-Mead')
-    h1, h2, h3, alpha_1, alpha_2 = result.x
-    print(f"Optimized Parameters: h1={h1}, h2={h2}, h3={h3}, alpha_1={alpha_1}, alpha_2={alpha_2}")
+    h1, h2, h3, alpha_1, alpha_2, tau = result.x
+    print(f"Optimized Parameters: h1={h1}, h2={h2}, h3={h3}, alpha_1={alpha_1}, alpha_2={alpha_2}, tau={tau}")
     print(result)
 
     # Plotting
-    model = ThermalModel(h1, h2, h3, Tf, alpha_1, alpha_2)
+    model = ThermalModel(h1, h2, h3, Tf, alpha_1, alpha_2, tau)
     simulated_temperatures = []
     for i in range(len(timestamps) - 1):
         dt = timestamps[i+1] - timestamps[i]
