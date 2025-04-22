@@ -78,7 +78,7 @@ def main():
     heater_2 = df['Heater 2'].values
     temp_1 = df['Temp 1 (degC)'].values + C_TO_KELVIN_OFFSET
     temp_2 = df['Temp 2 (degC)'].values + C_TO_KELVIN_OFFSET
-    Tf = 29 + C_TO_KELVIN_OFFSET
+    Tf = temp_1[0]
 
     def objective(x):
         h1, h2, h3, alpha_1, alpha_2 = x
