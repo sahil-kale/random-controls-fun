@@ -58,7 +58,7 @@ class ThermalModel:
         U_current = np.array([Q1_pct, Q2_pct, self.Tf]).reshape(3, 1)
 
         # RK4 integration
-        NUM_RK_ITERATIONS = 2
+        NUM_RK_ITERATIONS = 1
         dt_step = dt / NUM_RK_ITERATIONS
         for _ in range(NUM_RK_ITERATIONS):
             k1 = self.calculate_xdot(self.X, U_current)
@@ -103,7 +103,7 @@ def main():
     # Initial guess and bounds
     initial_guess = [10, 10, 10, 1/100, 0.75/100, 20]
     bounds = [(1, 100), (1, 100), (1, 1000), (0.001, 0.015), (0.001, 0.015), (1, None)]
-    result = minimize(objective, initial_guess, bounds=bounds, method='Nelder-Mead')
+    result = minimize(objective, initial_guess, bounds=bounds)
     print(result)
     h1, h2, h3, alpha_1, alpha_2, tau = result.x
     print(f"Optimized Parameters: h1={h1}, h2={h2}, h3={h3}, alpha_1={alpha_1}, alpha_2={alpha_2}, tau={tau}")
