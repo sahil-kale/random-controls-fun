@@ -49,7 +49,7 @@ class MRACSimulator:
             x_m.append(self.reference_model.output())
             e = x_p[-1] - x_m[-1]
             self.calculate_adaptive_control_weight(e, r[i], dt)
-            theta_hist.append(self.theta)
+            theta_hist.append(self.theta.item())
         
 
         return np.array(x_p), np.array(x_m), np.array(u), np.array(theta_hist)
