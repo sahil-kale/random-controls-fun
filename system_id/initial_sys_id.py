@@ -136,7 +136,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Initial System ID')
-    parser.add_argument('--duration', type=int, default=150, help='Duration of the experiment in seconds')
+    parser.add_argument('--duration', type=int, default=300, help='Duration of the experiment in seconds')
     parser.add_argument('--random_temp_control_time', type=int, default=45, help='Time interval for random temperature control in seconds')
     parser.add_argument('--cool_off_time', type=int, default=300, help='Cool off time in seconds')
     parser.add_argument('--dt', type=float, default=1.0, help='Sampling time in seconds')
