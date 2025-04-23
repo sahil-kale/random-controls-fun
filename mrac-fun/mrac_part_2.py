@@ -21,15 +21,14 @@ class MRACSimulator:
         self.plant = plant
         self.reference_model = reference_model
         self.gamma = gamma
-        self.theta = np.array(0.0).reshape(-1, 1)
+        self.theta = np.zeros((2,)) # theta_r, theta_xp
 
-    def calculate_adaptive_control_weight(self, e, r, dt):
-        dtheta = (-self.gamma * e * r) # MIT rule
-        self.theta += dt * dtheta
-        return self.theta
-    
-    def get_controller_output(self, r):
-        return self.theta * r
+    def calculate_adaptive_control_weight(self, e, r, x_p, dt):
+        self.theta[0] -= np.array(self.gamma * e * r * dt)
+        self.theta[1] -= np.array(self.gamma * e * x_p * dt)
+        
+    def get_controller_output(self, r, x_p):
+        return self.theta[0] * r + self.theta[1] * x_p
 
     def propogate_sim(self, r, u, dt):
         self.reference_model.update(r, dt)
@@ -42,15 +41,14 @@ class MRACSimulator:
         theta_hist = []
 
         for i in range(len(t)):
-            u_i = self.get_controller_output(r[i])
+            u_i = self.get_controller_output(r[i], self.plant.output())
             u.append(u_i)
             self.propogate_sim(r[i], u_i, dt)
             x_p.append(self.plant.output())
             x_m.append(self.reference_model.output())
             e = x_p[-1] - x_m[-1]
-            self.calculate_adaptive_control_weight(e, r[i], dt)
-            theta_hist.append(self.theta.item())
-        
+            self.calculate_adaptive_control_weight(e, r[i], x_p[i], dt)
+            theta_hist.append(self.theta.tolist())
 
         return np.array(x_p), np.array(x_m), np.array(u), np.array(theta_hist)
 
@@ -66,7 +64,10 @@ class MRACSimulator:
         
         plt.subplot(2, 1, 2)
         plt.plot(t, u.reshape(-1), label='Control Input $u$', color='orange')
-        plt.plot(t, theta_hist.reshape(-1), label='Adaptive Parameter $\Theta$', color='green')
+        theta_r = theta_hist[:, 0]
+        theta_xp = theta_hist[:, 1]
+        plt.plot(t, theta_r, label='Adaptive Parameter $\Theta_r$', linestyle='--')
+        plt.plot(t, theta_xp, label='Adaptive Parameter $\Theta_{xp}$', linestyle=':')
         plt.xlabel('Time (s)')
         plt.ylabel('Control Input / Adaptive Parameter')
         plt.legend()
