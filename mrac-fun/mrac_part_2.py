@@ -41,7 +41,7 @@ class MRACSimulator:
         return self.plant.output().item(), self.reference_model.output().item(), u, self.theta.copy()
 
 if __name__ == "__main__":
-    A_p, B_p, C_p, D_p = np.array([[-1]]), np.array([[1]]), np.array([[1]]), np.array([[0]])
+    A_p, B_p, C_p, D_p = np.array([[2]]), np.array([[1]]), np.array([[1]]), np.array([[0]])
     A_m, B_m, C_m, D_m = np.array([[-2]]), np.array([[2]]), np.array([[1]]), np.array([[0]])
 
     plant_model = StateSpaceModel(A_p, B_p, C_p, D_p)
@@ -76,6 +76,9 @@ if __name__ == "__main__":
     slider_ax = plt.axes([0.25, 0.05, 0.50, 0.03])
     slider = Slider(slider_ax, 'Reference Input', -5.0, 5.0, valinit=1.0)
 
+    slider_A_p_pole_ax = plt.axes([0.25, 0.01, 0.50, 0.03])
+    slider_A_p_pole = Slider(slider_A_p_pole_ax, 'Pole A_p', -5.0, 5.0, valinit=2.0)
+
     # Simulation buffers
     dt = 0.05
     t_data, x_p_data, x_m_data, u_data, theta_0_data, theta_1_data = [], [], [], [], [], []
@@ -84,6 +87,7 @@ if __name__ == "__main__":
     def update(frame):
         global time_counter
         r = slider.val
+        plant_model.A[0, 0] = slider_A_p_pole.val
         x_p, x_m, u, theta = simulator.step(r, dt)
         time_counter += dt
 
