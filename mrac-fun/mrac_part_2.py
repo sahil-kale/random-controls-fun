@@ -2,21 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Slider
+from StateSpaceModel import StateSpaceModel
 
-class StateSpaceModel:
-    def __init__(self, A, B, C, D):
-        self.A = A
-        self.B = B
-        self.C = C
-        self.D = D
-        self.state = np.zeros(A.shape[0])
-
-    def update(self, u, dt):
-        x_dot = self.A @ self.state + self.B * u
-        self.state = x_dot * dt + self.state
-
-    def output(self):
-        return self.C @ self.state + self.D
 
 class MRACSimulator:
     def __init__(self, plant, reference_model, gamma):
@@ -77,7 +64,7 @@ if __name__ == "__main__":
     slider = Slider(slider_ax, 'Reference Input', -5.0, 5.0, valinit=1.0)
 
     slider_A_p_pole_ax = plt.axes([0.25, 0.01, 0.50, 0.03])
-    slider_A_p_pole = Slider(slider_A_p_pole_ax, 'Pole A_p', -5.0, 5.0, valinit=2.0)
+    slider_A_p_pole = Slider(slider_A_p_pole_ax, 'Pole A_p', -5.0, 5.0, valinit=0.0)
 
     # Simulation buffers
     dt = 0.05
