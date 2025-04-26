@@ -32,7 +32,7 @@ if __name__ == "__main__":
     simulator = MIMOMRACSimulator(plant_model, controller)
 
     # Plotting setup
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12))
     plt.subplots_adjust(bottom=0.3)
 
     # Line objects
@@ -56,8 +56,11 @@ if __name__ == "__main__":
     ax2.legend()
     ax2.grid(True)
 
-    line_theta_r_00, = ax3.plot([], [], label=r'$\theta_{r}[0,0]$', linestyle='--')
-    line_theta_r_11, = ax3.plot([], [], label=r'$\theta_{r}[1,1]$', linestyle='--')
+    line_theta_r_00, = ax3.plot([], [], label=r'$\theta_{r}[0,0]$', linestyle='--', color='orange')
+    line_theta_r_11, = ax3.plot([], [], label=r'$\theta_{r}[1,1]$', linestyle='--', color='brown')
+    line_theta_xp_00, = ax3.plot([], [], label=r'$\theta_{xp}[0,0]$', linestyle=':', color='green')
+    line_theta_xp_11, = ax3.plot([], [], label=r'$\theta_{xp}[1,1]$', linestyle=':', color='blue')
+
     ax3.set_xlim(0, 10)
     ax3.set_ylim(-20, 20)
     ax3.set_ylabel('Adaptive Parameters')
@@ -74,7 +77,10 @@ if __name__ == "__main__":
 
     # Simulation buffers
     dt = 0.02
-    t_data, xp1_data, xm1_data, xp2_data, xm2_data, u1_data, u2_data, theta_r_00_data, theta_r_11_data = [], [], [], [], [], [], [], [], []
+    t_data, xp1_data, xm1_data, xp2_data, xm2_data = [], [], [], [], []
+    u1_data, u2_data = [], []
+    theta_r_00_data, theta_r_11_data = [], []
+    theta_xp_00_data, theta_xp_11_data = [], []
     time_counter = 0
 
     def update(frame):
@@ -97,6 +103,8 @@ if __name__ == "__main__":
         u2_data.append(u[-1, 1])
         theta_r_00_data.append(theta_r[-1, 0, 0])
         theta_r_11_data.append(theta_r[-1, 1, 1])
+        theta_xp_00_data.append(theta_xp[-1, 0, 0])
+        theta_xp_11_data.append(theta_xp[-1, 1, 1])
 
         # Update plot windows dynamically
         t_min = max(0, time_counter - 10)
@@ -113,8 +121,11 @@ if __name__ == "__main__":
         line_u2.set_data(t_data, u2_data)
         line_theta_r_00.set_data(t_data, theta_r_00_data)
         line_theta_r_11.set_data(t_data, theta_r_11_data)
+        line_theta_xp_00.set_data(t_data, theta_xp_00_data)
+        line_theta_xp_11.set_data(t_data, theta_xp_11_data)
 
-        return (line_xp1, line_xm1, line_xp2, line_xm2, line_u1, line_u2, line_theta_r_00, line_theta_r_11)
+        return (line_xp1, line_xm1, line_xp2, line_xm2, line_u1, line_u2,
+                line_theta_r_00, line_theta_r_11, line_theta_xp_00, line_theta_xp_11)
 
     ani = FuncAnimation(fig, update, interval=dt*1000)
     plt.show()
