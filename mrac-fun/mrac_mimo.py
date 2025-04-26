@@ -29,7 +29,7 @@ if __name__ == "__main__":
     gamma_xp = np.eye(2) * gamma_xp_const
 
     controller = MIMOMRACController(reference_model, gamma_r, gamma_xp, num_control_inputs=2)
-    simulator = MIMOMRACSimulator(plant_model, controller, noise_std=1.0, noise_scale=0.25)
+    simulator = MIMOMRACSimulator(plant_model, controller, noise_std=0.25, noise_scale=0.4)
 
     # Plotting setup
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12))
