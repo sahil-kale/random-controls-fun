@@ -4,7 +4,7 @@ import matplotlib.animation as animation
 from StateSpaceModel import StateSpaceModel
 
 class MIMOMRACController:
-    def __init__(self, ref_model, gamma_r, gamma_xp, num_control_inputs):
+    def __init__(self, ref_model, gamma_r, gamma_xp, num_control_inputs, sigma_r=None, sigma_xp=None):
         self.ref_model = ref_model
         self.gamma_r = gamma_r
         self.gamma_xp = gamma_xp
@@ -15,6 +15,9 @@ class MIMOMRACController:
         self.num_control_inputs = num_control_inputs
         self.num_states = num_states
         self.assert_matrix_dimensions()
+
+        self.sigma_r = sigma_r
+        self.sigma_xp = sigma_xp
 
     def assert_matrix_dimensions(self):
         assert self.gamma_r.shape == (self.num_states, self.num_control_inputs), \
@@ -33,6 +36,12 @@ class MIMOMRACController:
         e = x_p - x_m
         d_theta_xp = -self.gamma_xp @ e @ x_p.T
         d_theta_r = -self.gamma_r @ e @ r.T
+
+        if self.sigma_r is not None:
+            d_theta_r -= self.sigma_r @ self.theta_r
+        
+        if self.sigma_xp is not None:
+            d_theta_xp -= self.sigma_xp @ self.theta_xp
         
         self.theta_xp += d_theta_xp * dt
         self.theta_r += d_theta_r * dt
