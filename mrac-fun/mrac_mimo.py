@@ -26,8 +26,6 @@ class MIMOMRACController:
     def step(self, r, x_p, dt):
         u = self.theta_r @ r + self.theta_xp @ x_p
 
-        # update reference model
-        self.ref_model.update(r, dt)
         x_m = self.ref_model.output()
         
         assert x_m.shape == x_p.shape, f"Reference model output shape {x_m.shape} does not match plant state shape {x_p.shape}"
@@ -38,8 +36,11 @@ class MIMOMRACController:
         
         self.theta_xp += d_theta_xp * dt
         self.theta_r += d_theta_r * dt
+
+        self.ref_model.update(r, dt)
         
         return u
+    
     
     def get_theta_r(self):
         return self.theta_r
@@ -151,8 +152,8 @@ if __name__ == "__main__":
     D_r = np.zeros((2, 2))
     reference_model = StateSpaceModel(A_r, B_r, C_r, D_r)
 
-    gamma_r_const  = 2.0
-    gamma_xp_const = 2.0
+    gamma_r_const  = 5.0
+    gamma_xp_const = 5.0
 
     gamma_r = np.eye(2) * gamma_r_const
     gamma_xp = np.eye(2) * gamma_xp_const
@@ -160,17 +161,17 @@ if __name__ == "__main__":
     controller = MIMOMRACController(reference_model, gamma_r, gamma_xp, num_control_inputs=2)
     simulator = MIMOMRACSimulator(plant_model, controller)
 
-    dt = 0.01
-    T = 60
+    dt = 0.001
+    T = 10
     t = np.arange(0, T, dt)
 
     for i in range(len(t)):
         r = 1
         sim_time = t[i]
-        if sim_time > 20:
-            r = -1
-        elif sim_time > 40:
-            r = 0
+        # if sim_time > 20:
+        #     r = -1
+        # elif sim_time > 40:
+        #     r = 0
 
         r = np.ones((2,)) * r
 
