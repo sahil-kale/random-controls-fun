@@ -38,7 +38,7 @@ class MIMOMRACController:
         
         self.theta_xp += d_theta_xp * dt
         self.theta_r += d_theta_r * dt
-
+        
         return u
     
     def get_theta_r(self):
@@ -69,11 +69,11 @@ class MIMOMRACSimulator:
         u = self.controller.step(r, self.plant.output(), dt)
         self.plant.update(u, dt)
 
-        self.u_history.append(u)
-        self.x_p_history.append(self.plant.output())
-        self.x_m_history.append(self.controller.get_ref_model().output())
-        self.theta_r_history.append(self.controller.get_theta_r())
-        self.theta_xp_history.append(self.controller.get_theta_xp())
+        self.u_history.append(u.copy())
+        self.x_p_history.append(self.plant.output().copy())
+        self.x_m_history.append(self.controller.get_ref_model().output().copy())
+        self.theta_r_history.append(self.controller.get_theta_r().copy())
+        self.theta_xp_history.append(self.controller.get_theta_xp().copy())
     
     def get_history(self):
         return np.array(self.u_history), np.array(self.x_p_history), np.array(self.x_m_history), \
@@ -151,8 +151,8 @@ if __name__ == "__main__":
     D_r = np.zeros((2, 2))
     reference_model = StateSpaceModel(A_r, B_r, C_r, D_r)
 
-    gamma_r_const = 5.0
-    gamma_xp_const = 5.0
+    gamma_r_const  = 2.0
+    gamma_xp_const = 2.0
 
     gamma_r = np.eye(2) * gamma_r_const
     gamma_xp = np.eye(2) * gamma_xp_const
