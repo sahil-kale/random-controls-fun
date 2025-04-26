@@ -159,16 +159,16 @@ if __name__ == "__main__":
     simulator = MIMOMRACSimulator(plant_model, controller)
 
     dt = 0.001
-    T = 10
+    T = 60
     t = np.arange(0, T, dt)
 
     for i in range(len(t)):
         r = 1
         sim_time = t[i]
-        # if sim_time > 20:
-        #     r = -1
-        # elif sim_time > 40:
-        #     r = 0
+        if sim_time > 40:
+            r = 0
+        elif sim_time > 20:
+            r = -1
 
         r = np.ones((2,1)) * r
 
