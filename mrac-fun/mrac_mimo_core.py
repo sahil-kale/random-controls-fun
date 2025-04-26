@@ -54,10 +54,13 @@ class MIMOMRACController:
 
 
 class MIMOMRACSimulator:
-    def __init__(self, plant, controller):
+    def __init__(self, plant, controller, noise_std=0.0, noise_scale=0.0):
         self.plant = plant
         self.controller = controller
         self.reset_history()
+
+        self.noise_std = noise_std
+        self.noise_scale = noise_scale
 
     def reset_history(self):
         self.u_history = []
@@ -67,7 +70,12 @@ class MIMOMRACSimulator:
         self.theta_xp_history = []
 
     def step(self, r, dt):
-        u = self.controller.step(r, self.plant.output(), dt)
+        x_p = self.plant.output()
+
+        noise_input = np.random.normal(0, self.noise_std, size=(self.plant.B.shape[1], 1)) * self.noise_scale
+        x_p_plus_noise = x_p + noise_input
+
+        u = self.controller.step(r, x_p_plus_noise, dt)
         self.plant.update(u, dt)
 
         self.u_history.append(u.copy())
