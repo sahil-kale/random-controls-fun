@@ -31,8 +31,8 @@ class MIMOMRACController:
         assert x_m.shape == x_p.shape, f"Reference model output shape {x_m.shape} does not match plant state shape {x_p.shape}"
         # adaptive update (Lyapunov rule)
         e = x_p - x_m
-        d_theta_xp = -self.gamma_xp * e * x_p.T
-        d_theta_r = -self.gamma_r * e * r.T
+        d_theta_xp = -self.gamma_xp @ e @ x_p.T
+        d_theta_r = -self.gamma_r @ e @ r.T
         
         self.theta_xp += d_theta_xp * dt
         self.theta_r += d_theta_r * dt
@@ -81,61 +81,58 @@ class MIMOMRACSimulator:
                np.array(self.theta_r_history), np.array(self.theta_xp_history)
     
 def plot_mimo_mrac_results(t, u, x_p, x_m, theta_r, theta_xp):
-    fig, axs = plt.subplots(5, 1, figsize=(12, 18))
+    fig, axs = plt.subplots(5, 1, figsize=(14, 20), sharex=True)
 
     # 1. Plant vs Reference States
-    axs[0].plot(t, x_p[:, :, 0], label='Plant State 1')
-    axs[0].plot(t, x_m[:, :, 0], '--', label='Ref Model State 1')
-    axs[0].plot(t, x_p[:, :, 1], label='Plant State 2')
-    axs[0].plot(t, x_m[:, :, 1], '--', label='Ref Model State 2')
-    axs[0].set_title('Plant vs Reference States')
-    axs[0].set_xlabel('Time (s)')
+    axs[0].plot(t, x_p[:, 0], label='Plant State 1')
+    axs[0].plot(t, x_m[:, 0], '--', label='Ref Model State 1')
+    axs[0].plot(t, x_p[:, 1], label='Plant State 2')
+    axs[0].plot(t, x_m[:, 1], '--', label='Ref Model State 2')
     axs[0].set_ylabel('States')
+    axs[0].set_title('Plant vs Reference States')
     axs[0].legend()
     axs[0].grid(True)
 
     # 2. Control Inputs
     axs[1].plot(t, u[:, 0], label='u1')
     axs[1].plot(t, u[:, 1], label='u2')
+    axs[1].set_ylabel('Control Inputs')
     axs[1].set_title('Control Inputs')
-    axs[1].set_xlabel('Time (s)')
-    axs[1].set_ylabel('Input')
     axs[1].legend()
     axs[1].grid(True)
 
-    # 3. Theta_r Evolution (one plot per (state, input) term)
+    # 3. Theta_r Evolution
     for i in range(theta_r.shape[2]):
-        axs[2].plot(t, theta_r[:, 0, i], label=f'theta_r[0,{i}]')
-        axs[2].plot(t, theta_r[:, 1, i], label=f'theta_r[1,{i}]')
-    axs[2].set_title('Theta_r Evolution')
-    axs[2].set_xlabel('Time (s)')
-    axs[2].set_ylabel('Theta_r values')
+        axs[2].plot(t, theta_r[:, 0, i], label=f'$\\theta_r[0,{i}]$')
+        axs[2].plot(t, theta_r[:, 1, i], label=f'$\\theta_r[1,{i}]$')
+    axs[2].set_ylabel('Theta_r entries')
+    axs[2].set_title('Evolution of Theta_r')
     axs[2].legend()
     axs[2].grid(True)
 
-    # 4. Theta_xp Evolution (one plot per (state, input) term)
+    # 4. Theta_xp Evolution
     for i in range(theta_xp.shape[2]):
-        axs[3].plot(t, theta_xp[:, 0, i], label=f'theta_xp[0,{i}]')
-        axs[3].plot(t, theta_xp[:, 1, i], label=f'theta_xp[1,{i}]')
-    axs[3].set_title('Theta_xp Evolution')
-    axs[3].set_xlabel('Time (s)')
-    axs[3].set_ylabel('Theta_xp values')
+        axs[3].plot(t, theta_xp[:, 0, i], label=f'$\\theta_{{xp}}[0,{i}]$')
+        axs[3].plot(t, theta_xp[:, 1, i], label=f'$\\theta_{{xp}}[1,{i}]$')
+    axs[3].set_ylabel('Theta_xp entries')
+    axs[3].set_title('Evolution of Theta_xp')
     axs[3].legend()
     axs[3].grid(True)
 
     # 5. Tracking Error Norm
-    error = np.linalg.norm(x_p - x_m, axis=(1, 2))
+    error = np.linalg.norm(x_p - x_m, axis=1)  # axis=1 because (time, 2 states)
     axs[4].plot(t, error, label='Tracking Error Norm')
-    axs[4].set_title('Tracking Error Over Time')
-    axs[4].set_xlabel('Time (s)')
     axs[4].set_ylabel('Error Norm')
+    axs[4].set_title('Tracking Error Over Time')
     axs[4].legend()
     axs[4].grid(True)
 
+    axs[4].set_xlabel('Time (s)')
     plt.tight_layout()
     plt.show()
 
-    
+
+
 if __name__ == "__main__":
     A_p = np.array([[-1, -6],
                     [-10, -2]])
@@ -173,7 +170,7 @@ if __name__ == "__main__":
         # elif sim_time > 40:
         #     r = 0
 
-        r = np.ones((2,)) * r
+        r = np.ones((2,1)) * r
 
         simulator.step(r, dt)
 
