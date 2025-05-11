@@ -8,16 +8,16 @@ from tclab import labtime
 
 class MRAC_TCLAB_Controller:
     def __init__(self, target_rise_time_s, ambient_temp, gamma_r, gamma_xp, num_control_inputs, sigma_r=None, sigma_xp=None):
-        bandwidth = target_rise_time_s * 0.35
+        bandwidth = 0.35/target_rise_time_s 
 
         # assume first order dynamics for reference model
         A_m = np.array([[-bandwidth, 0],
                         [0, -bandwidth]])
-        B_m = np.array([[bandwidth, 0],
-                        [0, bandwidth]])
-        
-        C_m = np.array([[1, 0],
+        B_m = np.array([[1, 0],
                         [0, 1]])
+        
+        C_m = np.array([[bandwidth, 0],
+                        [0, bandwidth]])
         D_m = np.array([[0, 0],
                         [0, 0]])
         
@@ -54,7 +54,7 @@ class MRAC_TCLAB_Controller:
         return self.mimo_mrac_controller.get_ref_model()
     
 
-def plot_results(T1_history, T2_history, Q1_history, Q2_history):
+def plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_history):
     import matplotlib.pyplot as plt
 
     plt.figure(figsize=(12, 8))
@@ -90,8 +90,8 @@ if __name__ == "__main__":
     else:
         lab = tclab.TCLab()
 
-    gamma_r  = np.eye(2) * 0.000000001
-    gamma_xp = np.eye(2) * 0.000000001
+    gamma_r  = np.eye(2) * 0.0001
+    gamma_xp = np.eye(2) * 0.0001
     num_control_inputs = 2
     target_rise_time_s = 60
     sigma_r  = np.eye(2) * 0.000000001
@@ -107,6 +107,7 @@ if __name__ == "__main__":
     Q1_history = []
     Q2_history = []
     u_history = []
+    ref_model_history = []
 
     for t in tclab.clock(args.run_time, dt):
         ref_temps = [40, 40]  # Desired temperatures for the heaters
@@ -121,8 +122,10 @@ if __name__ == "__main__":
         Q1_history.append(lab.Q1())
         Q2_history.append(lab.Q1())
         u_history.append(u)
+        ref_model_history.append(controller.get_ref_model().output())
 
-    plot_results(T1_history, T2_history, Q1_history, Q2_history)
+
+    plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_history)
     lab.Q1(0)
     lab.Q2(0)
     lab.close()
