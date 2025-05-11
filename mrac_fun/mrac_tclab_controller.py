@@ -81,7 +81,7 @@ def plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_histo
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='MRAC TCLab Controller')
     parser.add_argument('--simulation', action='store_true', help='Use simulated TCLab')
-    parser.add_argument('--run_time', type=float, default=600.0, help='Run time in seconds')
+    parser.add_argument('--run_time', type=float, default=3000.0, help='Run time in seconds')
     args = parser.parse_args()
 
     if args.simulation:
@@ -90,8 +90,8 @@ if __name__ == "__main__":
     else:
         lab = tclab.TCLab()
 
-    gamma_r  = np.eye(2) * 0.0001
-    gamma_xp = np.eye(2) * 0.0001
+    gamma_r  = np.eye(2) * 0.00001
+    gamma_xp = np.eye(2) * 0.00001
     num_control_inputs = 2
     target_rise_time_s = 60
     sigma_r  = np.eye(2) * 0.000000001
