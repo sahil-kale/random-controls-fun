@@ -9,8 +9,8 @@ class MIMOMRACController:
         self.gamma_r = gamma_r
         self.gamma_xp = gamma_xp
         num_states = ref_model.A.shape[0]
-        self.theta_r = np.zeros((num_states, num_control_inputs)) # assume that ref model has same number of outputs as plant
-        self.theta_xp = np.zeros((num_states, num_control_inputs))
+        self.theta_r = np.zeros((num_control_inputs, num_states)) # assume that ref model has same number of outputs as plant
+        self.theta_xp = np.zeros((num_control_inputs, num_states))
 
         self.num_control_inputs = num_control_inputs
         self.num_states = num_states
@@ -50,7 +50,6 @@ class MIMOMRACController:
         
         return u
     
-    
     def get_theta_r(self):
         return self.theta_r
 
@@ -59,8 +58,6 @@ class MIMOMRACController:
     
     def get_ref_model(self):
         return self.ref_model
-    
-
 
 class MIMOMRACSimulator:
     def __init__(self, plant, controller, noise_std=0.0, noise_scale=0.0):

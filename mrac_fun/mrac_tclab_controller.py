@@ -111,6 +111,10 @@ if __name__ == "__main__":
 
     for t in tclab.clock(args.run_time, dt):
         ref_temps = [40, 40]  # Desired temperatures for the heaters
+
+        if t > 1500:
+            ref_temps = [60, 30]
+
         plant_temps = [lab.T1, lab.T2]
         u = controller.step(ref_temps, plant_temps, dt)
         lab.Q1(u[0])
@@ -124,9 +128,8 @@ if __name__ == "__main__":
         u_history.append(u)
         ref_model_history.append(controller.get_ref_model().output())
 
-
-    plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_history)
     lab.Q1(0)
     lab.Q2(0)
     lab.close()
+    plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_history)
     print("Experiment completed.")
