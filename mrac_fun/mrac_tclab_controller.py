@@ -62,6 +62,12 @@ def plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_histo
     plt.subplot(2, 1, 1)
     plt.plot(T1_history, label='T1 (°C)')
     plt.plot(T2_history, label='T2 (°C)')
+    ref_model_history_1 = [x[0] for x in ref_model_history]
+    ref_model_history_2 = [x[1] for x in ref_model_history]
+
+    plt.plot(ref_model_history_1, label='Ref Model T1 (°C)', linestyle='--')
+    plt.plot(ref_model_history_2, label='Ref Model T2 (°C)', linestyle='--')
+
     plt.title('Temperature History')
     plt.xlabel('Time (s)')
     plt.ylabel('Temperature (°C)')
@@ -81,7 +87,7 @@ def plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_histo
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='MRAC TCLab Controller')
     parser.add_argument('--simulation', action='store_true', help='Use simulated TCLab')
-    parser.add_argument('--run_time', type=float, default=3000.0, help='Run time in seconds')
+    parser.add_argument('--run_time', type=float, default=5000.0, help='Run time in seconds')
     args = parser.parse_args()
 
     if args.simulation:
@@ -90,8 +96,8 @@ if __name__ == "__main__":
     else:
         lab = tclab.TCLab()
 
-    gamma_r  = np.eye(2) * 0.00001
-    gamma_xp = np.eye(2) * 0.00001
+    gamma_r  = np.eye(2) * 0.00002
+    gamma_xp = np.eye(2) * 0.00002
     num_control_inputs = 2
     target_rise_time_s = 60
     sigma_r  = np.eye(2) * 0.000000001
@@ -112,8 +118,29 @@ if __name__ == "__main__":
     for t in tclab.clock(args.run_time, dt):
         ref_temps = [40, 40]  # Desired temperatures for the heaters
 
-        if t > 1500:
+        if t > 500:
             ref_temps = [60, 30]
+
+        if t > 1000:
+            ref_temps = [40, 40]
+
+        if t > 1500:
+            ref_temps = [50, 50]
+
+        if t > 2000:
+            ref_temps = [30, 50]
+
+        if t > 2500:
+            ref_temps = [40, 40]
+        
+        if t > 3000:
+            ref_temps = [50, 30]
+        
+        if t > 3500:
+            ref_temps = [60, 40]
+
+        if t > 4000:
+            ref_temps = [50, 30]
 
         plant_temps = [lab.T1, lab.T2]
         u = controller.step(ref_temps, plant_temps, dt)
@@ -124,9 +151,10 @@ if __name__ == "__main__":
         T1_history.append(lab.T1)
         T2_history.append(lab.T2)
         Q1_history.append(lab.Q1())
-        Q2_history.append(lab.Q1())
+        Q2_history.append(lab.Q2())
         u_history.append(u)
-        ref_model_history.append(controller.get_ref_model().output())
+        ref_model_output = controller.get_ref_model().output()
+        ref_model_history.append(ref_model_output + np.array([ambient_temp, ambient_temp]).reshape(-1, 1))
 
     lab.Q1(0)
     lab.Q2(0)
