@@ -5,9 +5,10 @@ import tclab
 import numpy as np
 import argparse
 from tclab import labtime
+import os
 
 class MRAC_TCLAB_Controller:
-    def __init__(self, target_rise_time_s, ambient_temp, gamma_r, gamma_xp, num_control_inputs, sigma_r=None, sigma_xp=None):
+    def __init__(self, target_rise_time_s, ambient_temp, gamma_r, gamma_xp, num_control_inputs, theta_r, theta_xp, sigma_r=None, sigma_xp=None):
         bandwidth = 0.35/target_rise_time_s 
 
         # assume first order dynamics for reference model
@@ -23,7 +24,7 @@ class MRAC_TCLAB_Controller:
         
         self.ref_model = StateSpaceModel(A_m, B_m, C_m, D_m)
 
-        self.mimo_mrac_controller = MIMOMRACController(self.ref_model, gamma_r, gamma_xp, num_control_inputs, sigma_r, sigma_xp)
+        self.mimo_mrac_controller = MIMOMRACController(self.ref_model, gamma_r, gamma_xp, num_control_inputs, theta_r, theta_xp, sigma_r, sigma_xp)
 
         self.ambient_temp = ambient_temp
 
@@ -84,11 +85,31 @@ def plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_histo
     plt.tight_layout()
     plt.show()
 
+def get_reference_temps(t):
+    schedule = [
+        (500, [40, 40]),
+        (1000, [60, 30]),
+        (1500, [40, 40]),
+        (2000, [50, 50]),
+        (2500, [30, 50]),
+        (3000, [40, 40]),
+        (3500, [50, 30]),
+        (4000, [60, 40]),
+        (4500, [40, 50]),
+    ]
+    for threshold, temps in schedule:
+        if t < threshold:
+            return temps
+    return [50, 30]
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='MRAC TCLab Controller')
     parser.add_argument('--simulation', action='store_true', help='Use simulated TCLab')
-    parser.add_argument('--run_time', type=float, default=5000.0, help='Run time in seconds')
+    parser.add_argument('--run-time', type=float, default=5000.0, help='Run time in seconds')
+    parser.add_argument('--save-weights', action='store_true', help='Save full state feedback weights to file')
+    parser.add_argument('--load-weights', action='store_true', help='Load full state feedback weights from file')
     args = parser.parse_args()
+    fb_weight_paths = "mrac_fun/fb_weights/"
 
     if args.simulation:
         lab = tclab.setup(connected=False, speedup=12)()
@@ -99,14 +120,22 @@ if __name__ == "__main__":
     gamma_r  = np.eye(2) * 0.00002
     gamma_xp = np.eye(2) * 0.00002
     num_control_inputs = 2
-    target_rise_time_s = 60
+    target_rise_time_s = 70
     sigma_r  = np.eye(2) * 0.000000001
     sigma_xp = np.eye(2) * 0.000000001
 
     ambient_temp = lab.T1
     print(f"Ambient temperature: {ambient_temp} °C")
 
-    controller = MRAC_TCLAB_Controller(target_rise_time_s, ambient_temp, gamma_r, gamma_xp, num_control_inputs, sigma_r, sigma_xp)
+    if args.load_weights:
+        print("Loading weights...")
+        theta_r = np.load(fb_weight_paths + "theta_r.npy")
+        theta_xp = np.load(fb_weight_paths + "theta_xp.npy")
+    else:
+        theta_r = np.zeros((num_control_inputs, 2))
+        theta_xp = np.zeros((num_control_inputs, 2))
+
+    controller = MRAC_TCLAB_Controller(target_rise_time_s, ambient_temp, gamma_r, gamma_xp, num_control_inputs, theta_r, theta_xp, sigma_r, sigma_xp)
     dt = 1.0
     T1_history = []
     T2_history = []
@@ -116,31 +145,7 @@ if __name__ == "__main__":
     ref_model_history = []
 
     for t in tclab.clock(args.run_time, dt):
-        ref_temps = [40, 40]  # Desired temperatures for the heaters
-
-        if t > 500:
-            ref_temps = [60, 30]
-
-        if t > 1000:
-            ref_temps = [40, 40]
-
-        if t > 1500:
-            ref_temps = [50, 50]
-
-        if t > 2000:
-            ref_temps = [30, 50]
-
-        if t > 2500:
-            ref_temps = [40, 40]
-        
-        if t > 3000:
-            ref_temps = [50, 30]
-        
-        if t > 3500:
-            ref_temps = [60, 40]
-
-        if t > 4000:
-            ref_temps = [50, 30]
+        ref_temps = get_reference_temps(t)
 
         plant_temps = [lab.T1, lab.T2]
         u = controller.step(ref_temps, plant_temps, dt)
@@ -159,5 +164,15 @@ if __name__ == "__main__":
     lab.Q1(0)
     lab.Q2(0)
     lab.close()
+    print("Heaters turned off.")
+
+    if args.save_weights:
+        print("Saving weights...")
+        # Create directory if it doesn't exist
+        if not os.path.exists(fb_weight_paths):
+            os.makedirs(fb_weight_paths)
+        np.save(fb_weight_paths + "theta_r.npy", controller.get_theta_r())
+        np.save(fb_weight_paths + "theta_xp.npy", controller.get_theta_xp())
+
     plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_history)
     print("Experiment completed.")

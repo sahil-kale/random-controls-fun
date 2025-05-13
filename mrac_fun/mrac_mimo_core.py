@@ -4,13 +4,13 @@ import matplotlib.animation as animation
 from StateSpaceModel import StateSpaceModel
 
 class MIMOMRACController:
-    def __init__(self, ref_model, gamma_r, gamma_xp, num_control_inputs, sigma_r=None, sigma_xp=None):
+    def __init__(self, ref_model, gamma_r, gamma_xp, num_control_inputs, theta_r, theta_xp, sigma_r=None, sigma_xp=None):
         self.ref_model = ref_model
         self.gamma_r = gamma_r
         self.gamma_xp = gamma_xp
         num_states = ref_model.A.shape[0]
-        self.theta_r = np.zeros((num_control_inputs, num_states)) # assume that ref model has same number of outputs as plant
-        self.theta_xp = np.zeros((num_control_inputs, num_states))
+        self.theta_r = theta_r
+        self.theta_xp = theta_xp
 
         self.num_control_inputs = num_control_inputs
         self.num_states = num_states
@@ -24,6 +24,11 @@ class MIMOMRACController:
             f"gamma_r should be of shape ({self.num_states}, {self.num_control_inputs})"
         assert self.gamma_xp.shape == (self.num_states, self.num_control_inputs), \
             f"gamma_xp should be of shape ({self.num_states}, {self.num_control_inputs})"
+        
+        assert self.theta_r.shape == (self.num_control_inputs, self.num_states), \
+            f"theta_r should be of shape ({self.num_control_inputs}, {self.num_states})"
+        assert self.theta_xp.shape == (self.num_control_inputs, self.num_states), \
+            f"theta_xp should be of shape ({self.num_control_inputs}, {self.num_states})"
 
 
     def step(self, r, x_p, dt):
