@@ -6,6 +6,7 @@ import numpy as np
 import argparse
 from tclab import labtime
 import os
+import matplotlib.pyplot as plt
 
 class MRAC_TCLAB_Controller:
     def __init__(self, target_rise_time_s, ambient_temp, gamma_r, gamma_xp, num_control_inputs, theta_r, theta_xp, sigma_r=None, sigma_xp=None):
@@ -56,8 +57,6 @@ class MRAC_TCLAB_Controller:
     
 
 def plot_results(T1_history, T2_history, Q1_history, Q2_history, ref_model_history):
-    import matplotlib.pyplot as plt
-
     plt.figure(figsize=(12, 8))
 
     plt.subplot(2, 1, 1)
