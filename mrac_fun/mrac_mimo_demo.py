@@ -28,7 +28,11 @@ if __name__ == "__main__":
     gamma_r = np.eye(2) * gamma_r_const
     gamma_xp = np.eye(2) * gamma_xp_const
 
-    controller = MIMOMRACController(reference_model, gamma_r, gamma_xp, num_control_inputs=2)
+    num_control_inputs = 2
+    theta_r = np.zeros((num_control_inputs, 2))
+    theta_xp = np.zeros((num_control_inputs, 2))
+
+    controller = MIMOMRACController(reference_model, gamma_r, gamma_xp, num_control_inputs, theta_r, theta_xp)
     simulator = MIMOMRACSimulator(plant_model, controller, noise_std=0.25, noise_scale=0.4)
 
     # Plotting setup

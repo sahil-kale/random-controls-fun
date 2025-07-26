@@ -73,9 +73,10 @@ if __name__ == "__main__":
 
     def update(frame):
         global time_counter
-        r = slider.val
+        ref = slider.val
+        ref = np.array(ref).reshape(-1, 1)
         plant_model.A[0, 0] = slider_A_p_pole.val
-        x_p, x_m, u, theta = simulator.step(r, dt)
+        x_p, x_m, u, theta = simulator.step(ref, dt)
         time_counter += dt
 
         t_data.append(time_counter)
