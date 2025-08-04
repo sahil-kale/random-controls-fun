@@ -37,3 +37,44 @@ theta_1_eq = sp.simplify(sp.diff(sp.diff(L, sp.diff(theta_1, t)), t) - sp.diff(L
 
 sp.pprint(x_eq, use_unicode=True)
 sp.pprint(theta_1_eq, use_unicode=True)
+
+# Define second derivatives as symbols (not functions!)
+xdd = sp.Symbol('xdd', real=True)
+theta1dd = sp.Symbol('theta1dd', real=True)
+
+# Replace second derivatives in equations
+xdd_expr = sp.diff(x, t, t)
+theta1dd_expr = sp.diff(theta_1, t, t)
+
+eq1_raw = sp.diff(sp.diff(L, sp.diff(x, t)), t) - sp.diff(L, x) - F_a
+eq2_raw = sp.diff(sp.diff(L, sp.diff(theta_1, t)), t) - sp.diff(L, theta_1)
+
+eq1 = eq1_raw.subs({xdd_expr: xdd, theta1dd_expr: theta1dd})
+eq2 = eq2_raw.subs({xdd_expr: xdd, theta1dd_expr: theta1dd})
+
+# Optionally simplify here
+eq1 = sp.simplify(eq1)
+eq2 = sp.simplify(eq2)
+
+# Solve
+sol = sp.solve([eq1, eq2], (xdd, theta1dd), simplify=True, rational=False)
+print("Equations of motion:")
+sp.pprint(sol[xdd], use_unicode=True)
+sp.pprint(sol[theta1dd], use_unicode=True)
+
+print("Verifying the solution...")
+
+# Substitute the solved expressions back into the raw equations
+eq1_check = eq1_raw.subs({xdd_expr: sol[xdd], theta1dd_expr: sol[theta1dd]})
+eq2_check = eq2_raw.subs({xdd_expr: sol[xdd], theta1dd_expr: sol[theta1dd]})
+
+# Simplify the results to verify they reduce to 0
+eq1_check_simplified = sp.simplify(eq1_check)
+eq2_check_simplified = sp.simplify(eq2_check)
+
+# Print to confirm
+print("Residual of x equation after substitution:")
+sp.pprint(eq1_check_simplified, use_unicode=True)
+
+print("\nResidual of theta_1 equation after substitution:")
+sp.pprint(eq2_check_simplified, use_unicode=True)
