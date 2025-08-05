@@ -1,7 +1,7 @@
 import sympy as sp
 
 # Symbol defs
-t = sp.symbols('t', real=True)
+t = sp.Symbol('t', real=True)
 g = sp.Symbol('g', real=True)  # gravitational acceleration
 M_cart = sp.Symbol('M_cart', real=True)
 F_a = sp.Function('F_a')(t)  # applied force on the cart
