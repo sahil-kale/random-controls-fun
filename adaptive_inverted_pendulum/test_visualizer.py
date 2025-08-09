@@ -67,7 +67,7 @@ def main():
     font = pygame.font.SysFont(None, 18)
 
     # --- Build the model (edit these to taste) ---
-    num_links = 2
+    num_links = 1
     link_lengths = [1.7] * num_links  # meters
     link_masses = [1.0] * num_links   # kg
     cart_mass = 5.0                   # kg

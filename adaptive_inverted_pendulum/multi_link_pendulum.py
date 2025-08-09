@@ -96,7 +96,7 @@ class MultiLinkPendulum:
             eqs_algebraic.append(sp.simplify(eq_sub))
 
         # Solve for accelerations
-        sol = sp.solve(eqs_algebraic, (xdd, *theta_dd), simplify=False, rational=False)
+        sol = sp.solve(eqs_algebraic, (xdd, *theta_dd), simplify=True, rational=False)
 
         # Build algebraic (non-functional) symbols for current value substitution
         self.x_sym = sp.Symbol('x', real=True)
