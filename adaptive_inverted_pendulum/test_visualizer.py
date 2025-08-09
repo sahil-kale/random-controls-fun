@@ -71,7 +71,8 @@ def main():
     link_lengths = [1.7] * num_links  # meters
     link_masses = [1.0] * num_links   # kg
     cart_mass = 5.0                   # kg
-    pend = MultiLinkPendulum(num_links, link_lengths, link_masses, cart_mass)
+    damping_coeff = 2
+    pend = MultiLinkPendulum(num_links, link_lengths, link_masses, cart_mass, damping_coeff)
     reset_state(pend)
 
     running = True

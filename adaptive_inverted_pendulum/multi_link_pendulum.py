@@ -2,12 +2,13 @@ import numpy as np
 import sympy as sp
 
 class MultiLinkPendulum:
-    def __init__(self, num_links, link_lengths, link_masses, cart_mass):
+    def __init__(self, num_links, link_lengths, link_masses, cart_mass, damping_coeff):
         self.num_links = num_links
         self.cart_mass = cart_mass
         self.link_lengths = link_lengths
         self.link_masses = link_masses
         self.g_val = 9.81  # gravitational acceleration in m/s^2
+        self.damping_coeff = damping_coeff
 
         assert len(link_lengths) == num_links, "Number of link lengths must match num_links"
         assert len(link_masses) == num_links, "Number of link masses must match num_links"
@@ -26,6 +27,7 @@ class MultiLinkPendulum:
         g = sp.Symbol('g', real=True)              # gravitational acceleration
         M_cart = sp.Symbol('M_cart', real=True)    # cart mass
         F_a = sp.Symbol('F_a', real=True)          # applied horizontal force on cart
+        b = sp.Symbol('b', real=True)              # damping coefficient
 
         cart_pos = sp.Function('x')(t)
 
@@ -72,7 +74,7 @@ class MultiLinkPendulum:
 
         # Euler-Lagrange equations
         equations = []
-        motion_eq_cart_pos = sp.diff(sp.diff(L, sp.diff(cart_pos, t)), t) - sp.diff(L, cart_pos) - F_a
+        motion_eq_cart_pos = sp.diff(sp.diff(L, sp.diff(cart_pos, t)), t) - sp.diff(L, cart_pos) - F_a + b * sp.diff(cart_pos, t)
         equations.append(sp.simplify(motion_eq_cart_pos))
 
         for i in range(self.num_links):
@@ -108,6 +110,7 @@ class MultiLinkPendulum:
         self.M_cart_sym = M_cart
         self.l_syms = l_syms
         self.m_syms = m_syms
+        self.b = b
 
         # Map functional vars -> algebraic symbols (positions & velocities)
         subs_map = {
@@ -141,6 +144,7 @@ class MultiLinkPendulum:
             self.F_a_sym: float(F_a_val),
             self.g_sym: float(self.g_val),
             self.M_cart_sym: float(self.cart_mass),
+            self.b: float(self.damping_coeff)
         }
         for i in range(self.num_links):
             subs_vals[self.theta_syms[i]] = float(thetas[i])
@@ -174,7 +178,8 @@ if __name__ == "__main__":
     link_lengths = [3.5] * num_links  # Length of each link
     link_masses = [2.0]  * num_links  # Mass of each link
     cart_mass = 10.0
-    pendulum = MultiLinkPendulum(num_links, link_lengths, link_masses, cart_mass)
+    damping_coeff = 0.5
+    pendulum = MultiLinkPendulum(num_links, link_lengths, link_masses, cart_mass, damping_coeff)
 
     # step the pendulum
     dt = 0.01  # time step in seconds
