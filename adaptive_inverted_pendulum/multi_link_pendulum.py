@@ -15,11 +15,11 @@ class MultiLinkPendulum:
         assert num_links > 0, "Number of links must be greater than 0"
         assert cart_mass > 0, "Cart mass must be greater than 0"
 
-        # Build symbolic dynamics
+        # Build symbolic dynamics and compile fast numeric functions
         self.derive_non_linear_state_space()
 
         # state = [x, xdot, theta_1..theta_n, thetadot_1..thetadot_n]
-        self.state = np.zeros(2 + 2 * num_links)
+        self.state = np.zeros(2 + 2 * num_links, dtype=float)
 
     def derive_non_linear_state_space(self):
         # Symbols and generalized coordinates
@@ -27,7 +27,7 @@ class MultiLinkPendulum:
         g = sp.Symbol('g', real=True)              # gravitational acceleration
         M_cart = sp.Symbol('M_cart', real=True)    # cart mass
         F_a = sp.Symbol('F_a', real=True)          # applied horizontal force on cart
-        b = sp.Symbol('b', real=True)              # damping coefficient
+        b = sp.Symbol('b', real=True)              # cart viscous damping coeff
 
         cart_pos = sp.Function('x')(t)
 
@@ -69,10 +69,9 @@ class MultiLinkPendulum:
 
         T_total = T_cart + sum(link_kinetic_energies)
         V_total = sum(link_potential_energies)
-
         L = T_total - V_total
 
-        # Euler-Lagrange equations
+        # Euler-Lagrange equations (cart has external force and viscous damping bx_dot)
         equations = []
         motion_eq_cart_pos = sp.diff(sp.diff(L, sp.diff(cart_pos, t)), t) - sp.diff(L, cart_pos) - F_a + b * sp.diff(cart_pos, t)
         equations.append(sp.simplify(motion_eq_cart_pos))
@@ -91,7 +90,7 @@ class MultiLinkPendulum:
         theta_dd_exprs = [sp.diff(theta, t, t) for theta in link_angles]
 
         eqs_algebraic = []
-        for i, eq in enumerate(equations):
+        for eq in equations:
             eq_sub = eq.subs({xdd_expr: xdd})
             for j in range(self.num_links):
                 eq_sub = eq_sub.subs({theta_dd_exprs[j]: theta_dd[j]})
@@ -121,43 +120,57 @@ class MultiLinkPendulum:
             subs_map[link_angles[i]] = self.theta_syms[i]
             subs_map[sp.diff(link_angles[i], t)] = self.thetadot_syms[i]
 
-        # Store expressions for accelerations in terms of algebraic symbols
-        self.xdd_expr = sp.simplify(sol[xdd].subs(subs_map))
-        self.theta_dd_exprs = [sp.simplify(sol[theta_dd[i]].subs(subs_map)) for i in range(self.num_links)]
+        # Expressions for accelerations using algebraic symbols
+        xdd_algebraic = sp.simplify(sol[xdd].subs(subs_map))
+        theta_dds_algebraic = [sp.simplify(sol[theta_dd[i]].subs(subs_map)) for i in range(self.num_links)]
+
+        # --------- SPEED-UP: compile one NumPy function for all accelerations ----------
+        # Order of inputs to the numeric function:
+        # [x, xdot, theta_1..theta_n, thetadot_1..thetadot_n, F_a, g, M_cart, b, l_1..l_n, m_1..m_n]
+        self._state_syms_order = [self.x_sym, self.xdot_sym] + self.theta_syms + self.thetadot_syms
+        self._param_syms_order = [self.F_a_sym, self.g_sym, self.M_cart_sym, self.b] + self.l_syms + self.m_syms
+        vars_order = self._state_syms_order + self._param_syms_order
+
+        accel_vec = sp.Matrix([xdd_algebraic] + theta_dds_algebraic)
+        # Use 'numpy' backend; keep it simple (no numba dependency)
+        self._accel_func = sp.lambdify(vars_order, accel_vec, 'numpy')
+
+        # Keep expressions if you still want to inspect/print them externally
+        self.xdd_expr = xdd_algebraic
+        self.theta_dd_exprs = theta_dds_algebraic
+        self.equations_of_motion = {xdd: xdd_algebraic}
+        for i, thdd in enumerate(theta_dds_algebraic):
+            self.equations_of_motion[sp.Symbol(f'theta{i+1}_dd')] = thdd
 
     def step_in_time(self, F_a_val: float, dt: float):
         """
         Advance one step using a simple semi-implicit (symplectic) Euler integrator.
         State layout: [x, xdot, theta_1..theta_n, thetadot_1..thetadot_n]
-        No lambdify is used; numeric evaluation is done via .subs(...).evalf().
         """
-        # unpack state
+        # Unpack
         x = float(self.state[0])
         xdot = float(self.state[1])
-        thetas = self.state[2:2 + self.num_links].astype(float)
-        thetadots = self.state[2 + self.num_links:].astype(float)
+        thetas = self.state[2:2 + self.num_links].astype(float, copy=True)
+        thetadots = self.state[2 + self.num_links:].astype(float, copy=True)
 
-        # Build substitution dictionary for current values and parameters
-        subs_vals = {
-            self.x_sym: x,
-            self.xdot_sym: xdot,
-            self.F_a_sym: float(F_a_val),
-            self.g_sym: float(self.g_val),
-            self.M_cart_sym: float(self.cart_mass),
-            self.b: float(self.damping_coeff)
-        }
-        for i in range(self.num_links):
-            subs_vals[self.theta_syms[i]] = float(thetas[i])
-            subs_vals[self.thetadot_syms[i]] = float(thetadots[i])
-            subs_vals[self.l_syms[i]] = float(self.link_lengths[i])
-            subs_vals[self.m_syms[i]] = float(self.link_masses[i])
+        # Build ordered numeric argument vector once (strictly follow vars_order)
+        args = []
+        # state
+        args.extend([x, xdot])
+        args.extend(thetas.tolist())
+        args.extend(thetadots.tolist())
+        # params
+        args.append(float(F_a_val))
+        args.append(float(self.g_val))
+        args.append(float(self.cart_mass))
+        args.append(float(self.damping_coeff))
+        args.extend([float(L) for L in self.link_lengths])
+        args.extend([float(m) for m in self.link_masses])
 
-        # Evaluate accelerations
-        xdd_num = float(self.xdd_expr.subs(subs_vals).evalf())
-        theta_dds_num = np.array(
-            [float(expr.subs(subs_vals).evalf()) for expr in self.theta_dd_exprs],
-            dtype=float
-        )
+        # Fast numeric evaluation
+        accels = np.asarray(self._accel_func(*args), dtype=float).reshape(-1)
+        xdd_num = accels[0]
+        theta_dds_num = accels[1:]
 
         # Semi-implicit Euler: update velocities, then positions
         xdot += xdd_num * dt
@@ -173,12 +186,15 @@ class MultiLinkPendulum:
 
         return self.state.copy()
 
+
 if __name__ == "__main__":
+    # Example: 2-link system (same external interface as your original)
     num_links = 2
-    link_lengths = [3.5] * num_links  # Length of each link
-    link_masses = [2.0]  * num_links  # Mass of each link
+    link_lengths = [3.5] * num_links
+    link_masses = [2.0]  * num_links
     cart_mass = 10.0
     damping_coeff = 0.5
+
     pendulum = MultiLinkPendulum(num_links, link_lengths, link_masses, cart_mass, damping_coeff)
 
     # step the pendulum
