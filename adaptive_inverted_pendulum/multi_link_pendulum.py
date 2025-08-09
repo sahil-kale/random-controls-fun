@@ -182,6 +182,3 @@ if __name__ == "__main__":
     cart_mass = 10.0
     pendulum = MultiLinkPendulum(num_links, link_lengths, link_masses, cart_mass)
     pendulum.print_equations_of_motion()
-    # Example single integration step:
-    s1 = pendulum.step_in_time(F_a_val=1.0, dt=0.01)
-    print("next state:", s1)
