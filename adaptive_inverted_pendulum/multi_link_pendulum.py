@@ -96,8 +96,7 @@ class MultiLinkPendulum:
             eqs_algebraic.append(sp.simplify(eq_sub))
 
         # Solve for accelerations
-        sol = sp.solve(eqs_algebraic, (xdd, *theta_dd), simplify=True, rational=False)
-        self.equations_of_motion = sol  # mapping from xdd/theta_dd to expressions
+        sol = sp.solve(eqs_algebraic, (xdd, *theta_dd), simplify=False, rational=False)
 
         # Build algebraic (non-functional) symbols for current value substitution
         self.x_sym = sp.Symbol('x', real=True)
@@ -122,11 +121,6 @@ class MultiLinkPendulum:
         # Store expressions for accelerations in terms of algebraic symbols
         self.xdd_expr = sp.simplify(sol[xdd].subs(subs_map))
         self.theta_dd_exprs = [sp.simplify(sol[theta_dd[i]].subs(subs_map)) for i in range(self.num_links)]
-
-    def print_equations_of_motion(self):
-        for var, eq in self.equations_of_motion.items():
-            print(f"Equation for {var}:")
-            sp.pprint(eq, use_unicode=True)
 
     def step_in_time(self, F_a_val: float, dt: float):
         """
@@ -176,9 +170,16 @@ class MultiLinkPendulum:
         return self.state.copy()
 
 if __name__ == "__main__":
-    num_links = 1
-    link_lengths = [3.5]  # Length of each link
-    link_masses = [2.0]   # Mass of each link
+    num_links = 2
+    link_lengths = [3.5] * num_links  # Length of each link
+    link_masses = [2.0]  * num_links  # Mass of each link
     cart_mass = 10.0
     pendulum = MultiLinkPendulum(num_links, link_lengths, link_masses, cart_mass)
-    pendulum.print_equations_of_motion()
+
+    # step the pendulum
+    dt = 0.01  # time step in seconds
+    force = 50
+    for _ in range(100):  # simulate 1 second
+        state = pendulum.step_in_time(force, dt)
+        print(f"State: {state}")
+    print("Simulation complete.")
