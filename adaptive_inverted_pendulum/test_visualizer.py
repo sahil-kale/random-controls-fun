@@ -67,10 +67,10 @@ def main():
     font = pygame.font.SysFont(None, 18)
 
     # --- Build the model (edit these to taste) ---
-    num_links = 2
-    link_lengths = [1.7] * num_links  # meters
-    link_masses = [1.0] * num_links   # kg
-    cart_mass = 5.0                   # kg
+    num_links = 1
+    link_lengths = [2.0] * num_links  # meters
+    link_masses = [0.5] * num_links   # kg
+    cart_mass = 10.0                   # kg
     damping_coeff = 2
     pend = MultiLinkPendulum(num_links, link_lengths, link_masses, cart_mass, damping_coeff)
     reset_state(pend)
