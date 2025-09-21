@@ -34,8 +34,25 @@ R = np.diag([0.01, 0.01])          # input cost
 K, _, _ = control.lqr(A_augmented, B_augmented, Q, R)
 click.secho(f"K = {K}", fg="yellow")
 
+# --- FEEDFORWARD: compute Kr (general MIMO) -------------------------------
+n = plant_A.shape[0]
+p = plant_C.shape[0]
+
+Kx = K[:, :n]                                 # <<< NEW (split augmented gain)
+
+ABCD = np.block([[plant_A, plant_B],          # <<< NEW
+                 [plant_C, plant_D]])         # <<< NEW
+rhs  = np.block([[np.zeros((n, p))],          # <<< NEW
+                 [np.eye(p)]])                # <<< NEW
+
+sol  = np.linalg.lstsq(ABCD, rhs, rcond=None)[0]   # <<< NEW
+Nx   = sol[:n, :]                                   # <<< NEW
+Nu   = sol[n:, :]                                   # <<< NEW
+Kr   = Nu + Kx @ Nx                                 # <<< NEW
+# -------------------------------------------------------------------------
+
 def control_law(x, r):
-    u = -K @ x # state feedback
+    u = -K @ x + Kr @ r 
     return u
 
 def propogate_dynamics(x, u, r, dt):
@@ -48,7 +65,7 @@ T = 10.0
 t = np.arange(0, T, dt)
 
 x = np.array([10.0, -5.0, 0.0, 0.0]) # initial state
-r = np.array([50.0, 1.0])              # reference input
+r = np.array([-50.0, 50.0])              # reference input
 
 x_log = np.zeros((len(t), len(x)))
 u_log = np.zeros((len(t), 2))
