@@ -1,8 +1,8 @@
 # Random Controls Fun
 
-This repository is a collection of control systems experiments and simulations I've played around with—usually for fun, learning, or out of random curiosity. Some of the scripts use [TCLab](https://apmonitor.com/heat.htm), others are purely simulations or concept demos.
+This repository is a collection of control systems experiments and simulations I've played around with, usually for fun, learning, or out of random curiosity. Some of the scripts use [TCLab](https://apmonitor.com/heat.htm), others are purely simulations or concept demos.
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 This repo is **not** meant to showcase good software engineering practices. It's a sandbox for quick ideas, test scripts, and algorithms I'm exploring. If you're looking for clean code or structured libraries, check out my other repositories instead.
 
