@@ -28,7 +28,7 @@ B_augmented = np.block([[plant_B],
 E = np.block([[np.zeros((2,2))],
               [np.eye(2)]])
 
-Q = np.diag([1.0, 1.0, 1.0, 1.0]) # state cost [2], integral cost [2]
+Q = np.diag([1.0, 1.0, 10.0, 1.0]) # state cost [2], integral cost [2]
 R = np.diag([0.01, 0.01])          # input cost
 
 K, _, _ = control.lqr(A_augmented, B_augmented, Q, R)
