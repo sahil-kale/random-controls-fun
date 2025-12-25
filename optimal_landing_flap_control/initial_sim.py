@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 import math
 from dataclasses import dataclass
+import click
 
 import jsbsim
 import matplotlib.pyplot as plt
-
 
 FT_TO_M = 0.3048
 
 
 @dataclass
 class Config:
-    aircraft: str = "c172r"
+    aircraft: str = "c172p"
     dt: float = 0.01
     t_max: float = 40.0
 
@@ -38,8 +38,7 @@ def make_sim(cfg: Config) -> jsbsim.FGFDMExec:
     sim = jsbsim.FGFDMExec(None)
     sim.load_model(cfg.aircraft)
 
-    # ground spawn, runway-ish heading, sea level
-    sim.set_property_value("ic/lat-gc-deg", 37.6188056)   # SFO-ish (anywhere is fine)
+    sim.set_property_value("ic/lat-gc-deg", 37.6188056)
     sim.set_property_value("ic/long-gc-deg", -122.3754167)
     sim.set_property_value("ic/h-sl-ft", 0.0)
     sim.set_property_value("ic/psi-true-deg", 0.0)
@@ -70,21 +69,18 @@ def rejected_takeoff_procedure(sim: jsbsim.FGFDMExec, cfg: Config) -> None:
     sim.set_property_value("fcs/elevator-cmd-norm", float(cfg.REJECT_ELEVATOR_AFT_NORM))
 
 
-def run_rto(sim: jsbsim.FGFDMExec, cfg: Config):
-    p_vtrue = prop(sim, "velocities/vtrue-fps", "velocities/vc-fps", "velocities/vt-fps")
-    p_vgnd = prop(sim, "velocities/vg-fps", "velocities/vground-fps", "velocities/vgnd-fps")
+def resolve_telemetry_props(sim: jsbsim.FGFDMExec) -> dict:
+    return {
+        "vtrue": prop(sim, "velocities/vtrue-fps", "velocities/vc-fps", "velocities/vt-fps"),
+        "vgnd": prop(sim, "velocities/vg-fps", "velocities/vground-fps", "velocities/vgnd-fps"),
+        "thr": prop(sim, "fcs/throttle-pos-norm", "fcs/throttle-cmd-norm"),
+        "flp": prop(sim, "fcs/flap-pos-norm", "fcs/flap-cmd-norm"),
+        "ele": prop(sim, "fcs/elevator-pos-norm", "fcs/elevator-cmd-norm"),
+    }
 
-    p_thr = prop(sim, "fcs/throttle-pos-norm", "fcs/throttle-cmd-norm")
-    p_flp = prop(sim, "fcs/flap-pos-norm", "fcs/flap-cmd-norm")
-    p_ele = prop(sim, "fcs/elevator-pos-norm", "fcs/elevator-cmd-norm")
 
-    t = 0.0
-    rejected = False
-    reject_time = math.nan
-
-    s_m = 0.0
-
-    log = {
+def init_log() -> dict:
+    return {
         "t": [],
         "vtrue_mps": [],
         "vgnd_mps": [],
@@ -94,29 +90,51 @@ def run_rto(sim: jsbsim.FGFDMExec, cfg: Config):
         "ele": [],
     }
 
+
+def log_step(sim: jsbsim.FGFDMExec, props: dict, log: dict, t: float, dist_m: float) -> float:
+    vtrue_mps = sim.get_property_value(props["vtrue"]) * FT_TO_M
+    vgnd_mps = sim.get_property_value(props["vgnd"]) * FT_TO_M
+    dist_m += vgnd_mps * sim.get_delta_t()
+
+    log["t"].append(t)
+    log["vtrue_mps"].append(vtrue_mps)
+    log["vgnd_mps"].append(vgnd_mps)
+    log["dist_m"].append(dist_m)
+    log["thr"].append(sim.get_property_value(props["thr"]))
+    log["flp"].append(sim.get_property_value(props["flp"]))
+    log["ele"].append(sim.get_property_value(props["ele"]))
+
+    return dist_m
+
+
+def wait_for_reject_trigger(sim: jsbsim.FGFDMExec, cfg: Config, props: dict, log: dict):
+    t = 0.0
+    dist_m = 0.0
+
     while t <= cfg.t_max:
         sim.run()
+        dist_m = log_step(sim, props, log, t, dist_m)
 
-        vtrue_mps = sim.get_property_value(p_vtrue) * FT_TO_M
-        vgnd_mps = sim.get_property_value(p_vgnd) * FT_TO_M
-        s_m += vgnd_mps * cfg.dt
-
-        if (not rejected) and (vtrue_mps >= cfg.TAKEOFF_REJECT_AIRSPEED_M_PER_S):
-            rejected = True
-            reject_time = t
-            rejected_takeoff_procedure(sim, cfg)
-
-        log["t"].append(t)
-        log["vtrue_mps"].append(vtrue_mps)
-        log["vgnd_mps"].append(vgnd_mps)
-        log["dist_m"].append(s_m)
-        log["thr"].append(sim.get_property_value(p_thr))
-        log["flp"].append(sim.get_property_value(p_flp))
-        log["ele"].append(sim.get_property_value(p_ele))
+        vtrue_mps = log["vtrue_mps"][-1]
+        if vtrue_mps >= cfg.TAKEOFF_REJECT_AIRSPEED_M_PER_S:
+            return t, dist_m
 
         t += cfg.dt
 
-    return log, reject_time
+    return math.nan, dist_m
+
+
+def run_post_reject(sim: jsbsim.FGFDMExec, cfg: Config, props: dict, log: dict, t0: float, dist_m0: float):
+    if not math.isfinite(t0):
+        return
+
+    t = t0
+    dist_m = dist_m0
+
+    while t <= cfg.t_max:
+        sim.run()
+        dist_m = log_step(sim, props, log, t, dist_m)
+        t += cfg.dt
 
 
 def plot(log, reject_time: float):
@@ -124,7 +142,6 @@ def plot(log, reject_time: float):
 
     fig, axs = plt.subplots(3, 1, sharex=True, figsize=(9, 8))
 
-    # --- speeds ---
     axs[0].plot(t, log["vtrue_mps"], label="airspeed (m/s)")
     axs[0].plot(t, log["vgnd_mps"], label="groundspeed (m/s)")
     if math.isfinite(reject_time):
@@ -133,14 +150,12 @@ def plot(log, reject_time: float):
     axs[0].legend()
     axs[0].grid(True)
 
-    # --- distance ---
     axs[1].plot(t, log["dist_m"])
     if math.isfinite(reject_time):
         axs[1].axvline(reject_time, linestyle="--")
     axs[1].set_ylabel("distance (m)")
     axs[1].grid(True)
 
-    # --- controls ---
     axs[2].plot(t, log["thr"], label="throttle")
     axs[2].plot(t, log["flp"], label="flaps")
     axs[2].plot(t, log["ele"], label="elevator")
@@ -155,7 +170,6 @@ def plot(log, reject_time: float):
     plt.show()
 
 
-
 def main():
     cfg = Config(
         TAKEOFF_REJECT_AIRSPEED_M_PER_S=28.0,
@@ -164,8 +178,19 @@ def main():
     )
 
     sim = make_sim(cfg)
+    props = resolve_telemetry_props(sim)
+    log = init_log()
+
     set_takeoff_controls(sim, cfg)
-    log, reject_time = run_rto(sim, cfg)
+    reject_time, dist_at_reject = wait_for_reject_trigger(sim, cfg, props, log)
+
+    if math.isfinite(reject_time):
+        rejected_takeoff_procedure(sim, cfg)
+    else:
+        click.secho("Takeoff reject not triggered within t_max!", fg="red")
+        
+
+    run_post_reject(sim, cfg, props, log, reject_time, dist_at_reject)
     plot(log, reject_time)
 
 
