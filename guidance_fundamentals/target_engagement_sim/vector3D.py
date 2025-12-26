@@ -21,6 +21,19 @@ class Vector3D:
 
     def __mul__(self, scalar):
         return Vector3D(self.x * scalar, self.y * scalar, self.z * scalar)
+    
+    def cross(self, other):
+        return Vector3D(
+            self.y * other.z - self.z * other.y,
+            self.z * other.x - self.x * other.z,
+            self.x * other.y - self.y * other.x,
+        )
+    
+    def dot(self, other):
+        return self.x * other.x + self.y * other.y + self.z * other.z
+    
+    def norm(self):
+        return self.magnitude()
 
     def magnitude(self):
         return np.sqrt(self.x**2 + self.y**2 + self.z**2)

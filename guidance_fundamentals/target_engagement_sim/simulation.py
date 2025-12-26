@@ -5,7 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from guidance_fundamentals.target_engagement_sim.vector3D import Vector3D
 from guidance_fundamentals.target_engagement_sim.point_mass_model import PointMassModel3D
-from guidance_fundamentals.target_engagement_sim.controller import DummyController
+from guidance_fundamentals.target_engagement_sim.controller import *
 
 
 class TargetEngagementSimulation:
@@ -32,7 +32,14 @@ class TargetEngagementSimulation:
         
         # Initialize controllers
         self.pursuer_controller = DummyController()
-        self.target_controller = DummyController()
+        self.target_controller = SpiralPathController(
+            spiral_path_velocity_vector=Vector3D(0.0, 0.0, 50.0),
+            spiral_radius_m=500.0,
+            spiral_angular_rate_rad_per_s=0.1,
+            kp=2.0,
+            kd=2.0,
+            max_accel_mps2=15.0,
+        )
         
         # Simulation parameters
         self.dt = dt
@@ -96,21 +103,12 @@ class TargetEngagementSimulation:
         ax.set_title('Target Engagement Simulation')
         ax.legend()
         
-        # Set axis limits based on trajectory data
-        all_positions = np.vstack([self.pursuer_history, self.target_history])
-        
-        # Calculate margin as 10% of the range or 500m, whichever is larger
-        x_range = all_positions[:, 0].max() - all_positions[:, 0].min()
-        y_range = all_positions[:, 1].max() - all_positions[:, 1].min()
-        z_range = all_positions[:, 2].max() - all_positions[:, 2].min()
-        
-        x_margin = max(500, x_range * 0.1)
-        y_margin = max(500, y_range * 0.1)
-        z_margin = max(500, z_range * 0.1)
-        
-        ax.set_xlim([all_positions[:, 0].min() - x_margin, all_positions[:, 0].max() + x_margin])
-        ax.set_ylim([all_positions[:, 1].min() - y_margin, all_positions[:, 1].max() + y_margin])
-        ax.set_zlim([all_positions[:, 2].min() - z_margin, all_positions[:, 2].max() + z_margin])
+        # Set axis limits with adaptive margin
+        all_pos = np.vstack([self.pursuer_history, self.target_history])
+        for axis_func, col in zip([ax.set_xlim, ax.set_ylim, ax.set_zlim], [0, 1, 2]):
+            data_range = all_pos[:, col].max() - all_pos[:, col].min()
+            margin = max(500, data_range * 0.1)
+            axis_func([all_pos[:, col].min() - margin, all_pos[:, col].max() + margin])
         
         # Add time text
         time_text = ax.text2D(0.02, 0.95, '', transform=ax.transAxes, fontsize=12)
@@ -203,22 +201,11 @@ def main():
     
     print("Running simulation...")
     sim.run()
-    print(f"Simulation complete. Simulated {len(sim.time_history)} time steps.")
-    
-    # Debug: print first and last positions
-    print(f"\nPursuer trajectory:")
-    print(f"  Start: {sim.pursuer_history[0]}")
-    print(f"  End: {sim.pursuer_history[-1]}")
-    print(f"\nTarget trajectory:")
-    print(f"  Start: {sim.target_history[0]}")
-    print(f"  End: {sim.target_history[-1]}")
-    
-    # Calculate final separation correctly (for single points)
+    # Calculate final separation
     final_separation = np.linalg.norm(sim.pursuer_history[-1] - sim.target_history[-1])
     print(f"Final separation: {final_separation:.2f} m")
     
     # Create animation
-    print("Creating animation...")
     sim.animate(interval=20, trail_length=100)
 
 
