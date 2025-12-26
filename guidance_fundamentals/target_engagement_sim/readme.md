@@ -1,0 +1,2 @@
+# Target engagement sim
+This contains a short simulator containing 2 point masses, a pursuer and target, with the pursuer using 2 different targeting algorithms (proportional navigation, and zero effort miss) to get the target.
